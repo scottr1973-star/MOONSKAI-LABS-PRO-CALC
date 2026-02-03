@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8" />
+<title>Moonskai Core | Computational Engine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#020617">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['system-ui','-apple-system','SF Pro Text','Inter','sans-serif'],
+            mono: ['JetBrains Mono','SF Mono','ui-monospace','Menlo','monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.0/lib/browser/math.js"></script>
+
+  <style>
+    body {
+      background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+      color: #e5e7eb;
+    }
+    .fc-card {
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.08), rgba(15,23,42,0.98));
+      border-radius: 1.25rem;
+      border: 1px solid rgba(148,163,184,0.4);
+      box-shadow: 0 24px 60px rgba(15,23,42,0.9), 0 0 32px rgba(59,130,246,0.28);
+      backdrop-filter: blur(24px);
+    }
+    .fc-card-soft {
+      background: radial-gradient(circle at top left, rgba(148,163,184,0.06), rgba(15,23,42,0.97));
+      border-radius: 1.25rem;
+      border: 1px solid rgba(51,65,85,0.9);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.9), 0 0 24px rgba(59,130,246,0.18);
+      backdrop-filter: blur(20px);
+    }
+    .fc-pill {
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.95));
+      box-shadow: 0 12px 30px rgba(15,23,42,0.9);
+    }
+    .calc-btn-main {
+      background: radial-gradient(circle at top, #38bdf8, #2563eb 48%, #111827 100%);
+      border: 1px solid rgba(191,219,254,0.85);
+      box-shadow: 0 16px 36px rgba(15,23,42,1), 0 0 18px rgba(56,189,248,0.9);
+      color: #020617;
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, filter 0.08s ease-out;
+    }
+    .calc-btn-main:hover { filter: brightness(1.05); transform: translateY(-1px); }
+    .calc-btn-main:active { transform: translateY(1px) scale(0.98); }
+    
+    .calc-btn {
+      background: radial-gradient(circle at top, #111827, #020617 60%, #020617 100%);
+      border: 1px solid rgba(30,64,175,0.9);
+      box-shadow: 0 12px 30px rgba(15,23,42,0.9);
+      color: #e5e7eb;
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, filter 0.08s ease-out;
+    }
+    .calc-btn:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 16px 36px rgba(15,23,42,1); }
+    .calc-btn:active { transform: translateY(1px) scale(0.98); }
+    .calc-btn, .calc-btn-main { touch-action: manipulation; }  
+
+    .tab-pill {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      transition: all 0.16s ease-out;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 0.75rem;
+    }
+    .tab-pill-active {
+      border-color: rgba(96,165,250,0.9);
+      background: radial-gradient(circle at top, rgba(59,130,246,0.25), rgba(15,23,42,0.96));
+      box-shadow: 0 12px 30px rgba(15,23,42,1), 0 0 15px rgba(37,99,235,0.7);
+      color: #e5e7eb;
+    }
+    .tab-pill-inactive {
+      border-color: rgba(30,64,175,0.8);
+      background: radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
+      color: #9ca3af;
+    }
+    .tab-pill-inactive:hover { color: #e5e7eb; border-color: rgba(59,130,246,0.8); box-shadow: 0 10px 24px rgba(15,23,42,1); }
+
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(75,85,99,0.8); border-radius: 999px; }
+    
+    @media (max-width: 480px) { html { font-size: 10px; } }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-100 antialiased">
+  <div class="relative min-h-screen flex flex-col items-center px-3 py-4 md:px-6 md:py-8 overflow-x-hidden">
+    <div class="pointer-events-none fixed inset-0 -z-10">
+      <div class="absolute -top-40 -left-24 h-80 w-80 rounded-full bg-cyan-500/20 blur-3xl"></div>
+      <div class="absolute top-40 -right-32 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
+      <div class="absolute bottom-0 left-1/2 -translate-x-1/2 h-72 w-[32rem] rounded-full bg-sky-400/10 blur-3xl"></div>
+    </div>
+
+    <header class="w-full max-w-6xl mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-4">
+        <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-sky-400 via-indigo-400 to-blue-700 shadow-lg shadow-sky-500/40 flex items-center justify-center">
+          <span class="font-mono font-bold text-xl text-slate-950">ƒ</span>
+        </div>
+        <div class="space-y-1">
+          <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">
+            MOONSKAI LABS PRO CALC
+          </h1>
+          <p class="text-xs md:text-sm text-slate-300/90">
+            Advanced Lab: Units, CAS, Finance, Stats & Data.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 justify-start md:justify-end">
+        <button onclick="saveWorkspace()" class="calc-btn px-3 py-1.5 rounded-lg font-mono text-[0.7rem] flex items-center gap-2">SAVE</button>
+        <button onclick="document.getElementById('loadInput').click()" class="calc-btn px-3 py-1.5 rounded-lg font-mono text-[0.7rem] flex items-center gap-2">LOAD</button>
+        <input type="file" id="loadInput" class="hidden" accept=".json" onchange="loadWorkspace(this)">
+        
+        <div class="fc-pill px-3 py-1.5 flex items-center gap-2 text-xs md:text-sm">
+          <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]"></span>
+          <span class="uppercase tracking-[0.16em] text-emerald-300/90 text-[0.68rem]">Engine</span>
+          <span class="font-semibold text-slate-100">math.js</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="w-full max-w-6xl grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)] items-stretch">
+      <section class="fc-card p-4 md:p-5 flex flex-col gap-4">
+        <header class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold tracking-[0.28em] uppercase text-slate-300/80">Core Calculator</h2>
+            <p class="text-xs text-slate-300/80">High-precision engine.</p>
+          </div>
+          <div class="flex flex-col items-end gap-1 text-[0.7rem] font-mono">
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-950/80 border border-slate-600/80 tracking-[0.12em] uppercase">
+              <span class="inline-flex h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.9)]"></span>
+              <span id="angle-mode-pill">Angle: RAD</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="rounded-2xl border border-slate-600/80 bg-slate-950/80 px-4 py-3 flex flex-col gap-1 shadow-inner shadow-slate-900/80">
+          <div class="flex items-center justify-between text-[0.65rem] font-mono text-slate-400">
+            <span id="status-line" class="truncate">Ready.</span>
+            <span class="flex items-center gap-2">
+              <span class="flex items-center gap-1"><span class="text-slate-500">mem</span><span id="memory-indicator" class="text-emerald-400/80">0</span></span>
+              <span class="flex items-center gap-1"><span class="text-slate-500">ans</span><span id="ans-indicator" class="text-sky-300/90">0</span></span>
+            </span>
+          </div>
+          <div class="flex flex-col items-end text-right">
+            <div id="expression-display" class="w-full min-h-[1.25rem] font-mono text-xs text-slate-300/90 break-words"></div>
+            <div id="main-display" class="w-full text-3xl md:text-4xl font-mono font-light text-slate-50 tracking-tight leading-tight overflow-x-auto scrollbar-thin">0</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-3 mt-2">
+          <div class="grid grid-rows-[auto_1fr] gap-2">
+            <div class="grid grid-cols-4 gap-1.5 text-xs">
+              <button data-key="mode-deg" class="calc-btn px-2 py-1.5 rounded-lg font-mono">DEG</button>
+              <button data-key="mode-rad" class="calc-btn px-2 py-1.5 rounded-lg font-mono opacity-70">RAD</button>
+              <button data-key="mode-clear" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-rose-200">AC</button>
+              <button data-key="mode-del" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-amber-200">DEL</button>
+            </div>
+            <div class="grid grid-cols-4 grid-rows-5 gap-1.5 text-base md:text-lg">
+              <button data-key="7" class="calc-btn rounded-xl py-3">7</button><button data-key="8" class="calc-btn rounded-xl py-3">8</button><button data-key="9" class="calc-btn rounded-xl py-3">9</button><button data-op="÷" class="calc-btn rounded-xl py-3 text-sky-300">÷</button>
+              <button data-key="4" class="calc-btn rounded-xl py-3">4</button><button data-key="5" class="calc-btn rounded-xl py-3">5</button><button data-key="6" class="calc-btn rounded-xl py-3">6</button><button data-op="×" class="calc-btn rounded-xl py-3 text-sky-300">×</button>
+              <button data-key="1" class="calc-btn rounded-xl py-3">1</button><button data-key="2" class="calc-btn rounded-xl py-3">2</button><button data-key="3" class="calc-btn rounded-xl py-3">3</button><button data-op="-" class="calc-btn rounded-xl py-3 text-sky-300">−</button>
+              <button data-key="0" class="calc-btn rounded-xl py-3 col-span-2">0</button><button data-key="." class="calc-btn rounded-xl py-3">.</button><button data-op="+" class="calc-btn rounded-xl py-3 text-sky-300">+</button>
+              <button data-key="(" class="calc-btn rounded-xl py-3 text-slate-200">(</button><button data-key=")" class="calc-btn rounded-xl py-3 text-slate-200">)</button><button data-op="^" class="calc-btn rounded-xl py-3 text-sky-300">xʸ</button>
+              <button data-eval="=" class="calc-btn-main rounded-xl py-3 text-lg font-semibold flex items-center justify-center gap-1"><span>=</span></button>
+            </div>
+          </div>
+          <div class="grid grid-rows-[auto_1fr] gap-2 text-xs">
+            <div class="grid grid-cols-4 gap-1.5">
+              <button data-mem="mc" class="calc-btn rounded-lg px-2 py-1.5 font-mono">MC</button><button data-mem="mr" class="calc-btn rounded-lg px-2 py-1.5 font-mono">MR</button><button data-mem="mplus" class="calc-btn rounded-lg px-2 py-1.5 font-mono">M+</button><button data-mem="mminus" class="calc-btn rounded-lg px-2 py-1.5 font-mono">M−</button>
+            </div>
+            <div class="grid grid-cols-3 grid-rows-4 gap-1.5 text-[0.8rem] md:text-xs">
+              <button data-func="pi" class="calc-btn rounded-xl py-2.5 font-mono">π</button><button data-func="e" class="calc-btn rounded-xl py-2.5 font-mono">e</button><button data-func="rand" class="calc-btn rounded-xl py-2.5 font-mono">rand</button>
+              <button data-func="sqrt" class="calc-btn rounded-xl py-2.5 font-mono">√x</button><button data-func="square" class="calc-btn rounded-xl py-2.5 font-mono">x²</button><button data-func="inv" class="calc-btn rounded-xl py-2.5 font-mono">1/x</button>
+              <button data-func="sin" class="calc-btn rounded-xl py-2.5 font-mono">sin</button><button data-func="cos" class="calc-btn rounded-xl py-2.5 font-mono">cos</button><button data-func="tan" class="calc-btn rounded-xl py-2.5 font-mono">tan</button>
+              <button data-func="ln" class="calc-btn rounded-xl py-2.5 font-mono">ln</button><button data-func="log10" class="calc-btn rounded-xl py-2.5 font-mono">log</button><button data-func="ans" class="calc-btn rounded-xl py-2.5 font-mono">ans</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fc-card-soft p-4 md:p-5 flex flex-col gap-3">
+        <header class="flex flex-col gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-semibold tracking-[0.28em] uppercase text-slate-300/80">Workbench</h2>
+              <p class="text-xs text-slate-300/80">Pro features &amp; visualizations</p>
+            </div>
+          </div>
+          <div class="flex border border-slate-700/80 rounded-full bg-slate-950/80 p-1 overflow-x-auto scrollbar-thin">
+            <button class="tab-pill tab-pill-active px-3 py-1.5" data-tab-target="console">Console</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="graph">Graph+</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="units">Units</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="algebra">Algebra</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="finance">Finance</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="stats">Stats</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="geometry">Geometry</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="matrix">Matrix</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="data">Data Viz</button>
+            <button class="tab-pill tab-pill-inactive px-3 py-1.5" data-tab-target="programmer">Programmer</button>
+          </div>
+        </header>
+
+        <div class="flex-1 min-h-0">
+          
+          <div id="tab-console" class="space-y-3">
+            <h3 class="text-sm md:text-base font-semibold text-sky-300 flex items-center gap-2">
+              <span class="inline-flex h-2 w-2 rounded-full bg-emerald-400"></span> Console / REPL
+            </h3>
+            <textarea id="consoleInput" class="w-full h-40 md:h-48 p-3 rounded-xl bg-slate-950/80 border border-slate-700/80 font-mono text-xs text-slate-100 outline-none scrollbar-thin" placeholder="2+2&#10;a=5&#10;sin(a)"></textarea>
+            <div class="flex gap-2">
+              <button onclick="runConsole()" class="calc-btn-main px-3 py-1.5 rounded-lg text-xs">Run</button>
+              <button onclick="clearConsole()" class="calc-btn px-3 py-1.5 rounded-lg text-xs">Clear</button>
+            </div>
+            <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 h-32 overflow-y-auto scrollbar-thin">
+              <pre id="consoleOutput" class="font-mono text-xs text-emerald-300 whitespace-pre-wrap"></pre>
+            </div>
+          </div>
+
+          <div id="tab-graph" class="hidden space-y-3">
+            <div class="flex justify-between">
+              <h3 class="text-sm font-semibold text-sky-300">Multi-Graph</h3>
+              <label class="text-[0.7rem] text-slate-400 flex items-center gap-1"><input type="checkbox" id="graphPolar"> Polar (r=θ)</label>
+            </div>
+            <div class="space-y-2">
+              <input id="graphExpr" class="w-full px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-xs" placeholder="sin(x), cos(x)" />
+              <div class="grid grid-cols-2 gap-2">
+                <input id="graphXMin" value="-10" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 text-xs" />
+                <input id="graphXMax" value="10" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 text-xs" />
+              </div>
+              <button onclick="plotGraph()" class="calc-btn-main px-3 py-1.5 rounded-lg text-xs w-full">Plot</button>
+              <div class="h-64 bg-slate-950/90 border border-slate-700/90 rounded-xl p-2 relative">
+                <canvas id="graphCanvas"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-units" class="hidden space-y-3">
+            <h3 class="text-sm font-semibold text-pink-400">Units & Constants</h3>
+            <div class="grid grid-cols-2 gap-4 text-xs">
+              <div class="space-y-2">
+                <input id="unitVal" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80" placeholder="100 degF" />
+                <input id="unitTarget" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80" placeholder="degC" />
+                <button onclick="convertUnits()" class="calc-btn-main w-full px-3 py-1.5 rounded-lg font-bold">Convert</button>
+                <div class="bg-slate-950/90 p-2 rounded border border-slate-700/90 text-center text-lg text-emerald-300" id="unitResult">---</div>
+              </div>
+              <div class="grid grid-cols-1 gap-2">
+                <button onclick="insertConst('c')" class="calc-btn px-2 py-2 rounded text-left">Speed of Light (c)</button>
+                <button onclick="insertConst('G')" class="calc-btn px-2 py-2 rounded text-left">Gravitation (G)</button>
+                <button onclick="insertConst('h')" class="calc-btn px-2 py-2 rounded text-left">Planck (h)</button>
+                <button onclick="insertConst('N_A')" class="calc-btn px-2 py-2 rounded text-left">Avogadro (N_A)</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-algebra" class="hidden space-y-3">
+            <h3 class="text-sm font-semibold text-amber-400">Symbolic Algebra</h3>
+            <input id="casInput" class="w-full px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-xs" placeholder="2x + x^2 + 3x" />
+            <div class="flex gap-2">
+              <button onclick="doCAS('simplify')" class="calc-btn px-3 py-1.5 rounded-lg text-xs">Simplify</button>
+              <button onclick="doCAS('derivative')" class="calc-btn px-3 py-1.5 rounded-lg text-xs">Derivative d/dx</button>
+            </div>
+            <div class="bg-slate-950/90 p-3 rounded-xl border border-slate-700/90 font-mono text-amber-300 text-sm" id="casOutput">Result...</div>
+          </div>
+
+          <div id="tab-finance" class="hidden space-y-3">
+            <h3 class="text-sm font-semibold text-emerald-400">Finance (Compound Interest)</h3>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <label>Principal <input id="finP" type="number" class="w-full bg-slate-950/80 border border-slate-700/80 rounded p-1" value="1000"></label>
+              <label>Rate % <input id="finR" type="number" class="w-full bg-slate-950/80 border border-slate-700/80 rounded p-1" value="5"></label>
+              <label>Years <input id="finT" type="number" class="w-full bg-slate-950/80 border border-slate-700/80 rounded p-1" value="10"></label>
+              <label>n/Yr <input id="finN" type="number" class="w-full bg-slate-950/80 border border-slate-700/80 rounded p-1" value="12"></label>
+            </div>
+            <button onclick="calcFinance()" class="calc-btn-main w-full py-1.5 rounded-lg text-xs">Calculate</button>
+            <div class="text-right text-xl text-emerald-300 font-mono" id="finResult">$0.00</div>
+          </div>
+
+          <div id="tab-stats" class="hidden space-y-3">
+            <div class="flex justify-between">
+              <h3 class="text-sm font-semibold text-amber-400">Stats</h3>
+              <label class="text-[0.65rem] text-sky-400 cursor-pointer hover:underline">Import CSV <input type="file" class="hidden" accept=".csv" onchange="importCSV(this)"></label>
+            </div>
+            <textarea id="statsData" class="w-full h-32 p-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.7rem] outline-none scrollbar-thin" placeholder="1, 2, 3, 4, 5"></textarea>
+            <div class="flex gap-2">
+              <button onclick="computeStats()" class="calc-btn px-3 py-1.5 rounded-lg text-xs">Compute</button>
+              <button onclick="document.getElementById('statsData').value=''" class="calc-btn px-3 py-1.5 rounded-lg text-xs">Clear</button>
+            </div>
+            <pre id="statsOutput" class="bg-slate-950/90 p-3 rounded-xl border border-slate-700/90 font-mono text-xs text-emerald-300">No data.</pre>
+          </div>
+
+          <div id="tab-data" class="hidden space-y-3">
+            <h3 class="text-sm md:text-base font-semibold text-sky-300 flex items-center gap-2">
+              <span class="inline-flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]"></span>
+              Data Visualization
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)] gap-4 text-xs">
+              <div class="space-y-2">
+                <label class="block text-xs text-slate-300/90">Data (label, value)</label>
+                <textarea id="dataInput" class="w-full h-32 p-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.7rem] outline-none scrollbar-thin" placeholder="Apples, 10&#10;Bananas, 15&#10;Cherries, 7"></textarea>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs text-slate-300/90">Chart type</label>
+                    <select id="dataChartType" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.7rem]">
+                      <option value="bar">Bar</option>
+                      <option value="line">Line</option>
+                      <option value="pie">Pie</option>
+                      <option value="doughnut">Doughnut</option>
+                      <option value="radar">Radar</option>
+                    </select>
+                  </div>
+                  <div class="flex flex-col justify-end">
+                    <button onclick="plotDataChart()" class="calc-btn-main px-3 py-1.5 rounded-lg">Plot</button>
+                  </div>
+                </div>
+              </div>
+              <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 flex flex-col">
+                <div class="flex-1 min-h-[10rem] h-64 md:h-72 flex items-center justify-center">
+                  <canvas id="dataCanvas"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-geometry" class="hidden space-y-3">
+            <h3 class="text-sm font-semibold text-indigo-400">Geometry Lab</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 space-y-2">
+                <h4 class="text-xs font-semibold text-sky-300">2D Shapes</h4>
+                <select id="geom2dShape" onchange="updateGeom2DFields()" class="w-full px-2 py-1.5 rounded-lg bg-slate-900/80 border border-slate-700/80 font-mono text-[0.75rem]">
+                  <option value="circle">Circle (r)</option>
+                  <option value="rectangle">Rectangle (w, h)</option>
+                  <option value="triangle-bh">Triangle (b, h)</option>
+                  <option value="triangle-sss">Triangle (3 sides)</option>
+                  <option value="trapezoid">Trapezoid (a, b, h)</option>
+                  <option value="ellipse">Ellipse (a, b)</option>
+                  <option value="sector">Circle Sector (r, angle)</option>
+                  <option value="regular-polygon">Regular Polygon (n, s)</option>
+                </select>
+                <div id="geom2dInputs"></div> 
+                <button onclick="computeGeom2D()" class="calc-btn-main px-3 py-1.5 rounded-lg text-xs w-full">Compute 2D</button>
+                <pre id="geom2dOutput" class="mt-1 font-mono text-[0.75rem] text-emerald-300">Result...</pre>
+              </div>
+
+              <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 space-y-2">
+                <h4 class="text-xs font-semibold text-sky-300">3D Solids</h4>
+                <select id="geom3dShape" onchange="updateGeom3DFields()" class="w-full px-2 py-1.5 rounded-lg bg-slate-900/80 border border-slate-700/80 font-mono text-[0.75rem]">
+                  <option value="box">Box (w, h, d)</option>
+                  <option value="sphere">Sphere (r)</option>
+                  <option value="cylinder">Cylinder (r, h)</option>
+                  <option value="cone">Cone (r, h)</option>
+                  <option value="torus">Torus (R, r)</option>
+                  <option value="pyramid">Square Pyramid (a, h)</option>
+                </select>
+                <div id="geom3dInputs"></div> 
+                <button onclick="computeGeom3D()" class="calc-btn-main px-3 py-1.5 rounded-lg text-xs w-full">Compute 3D</button>
+                <pre id="geom3dOutput" class="mt-1 font-mono text-[0.75rem] text-emerald-300">Result...</pre>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-matrix" class="hidden space-y-3">
+            <h3 class="text-sm font-semibold text-violet-400">Matrix Lab</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div class="space-y-2">
+                <textarea id="matrixA" class="w-full h-32 p-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.7rem] outline-none scrollbar-thin" placeholder="1 2&#10;3 4"></textarea>
+                <textarea id="matrixB" class="w-full h-32 p-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.7rem] outline-none scrollbar-thin" placeholder="5 6&#10;7 8"></textarea>
+                <div class="flex flex-wrap gap-2">
+                  <button onclick="doMatrix('det')" class="calc-btn px-3 py-1.5 rounded-lg">det(A)</button>
+                  <button onclick="doMatrix('inv')" class="calc-btn px-3 py-1.5 rounded-lg">inv(A)</button>
+                  <button onclick="doMatrix('mul')" class="calc-btn px-3 py-1.5 rounded-lg">A × B</button>
+                </div>
+              </div>
+              <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 flex flex-col">
+                <pre id="matrixOutput" class="flex-1 font-mono text-[0.75rem] text-emerald-300 whitespace-pre-wrap overflow-y-auto scrollbar-thin">Output...</pre>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-programmer" class="hidden space-y-3">
+            <h3 class="text-sm md:text-base font-semibold text-sky-300 flex items-center gap-2">
+              <span class="inline-flex h-2 w-2 rounded-full bg-fuchsia-400 shadow-[0_0_10px_rgba(232,121,249,0.9)]"></span>
+              Programmer / Bitwise
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div class="space-y-2">
+                <label class="block">Decimal</label><input id="progDec" oninput="progSync('dec')" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="42" />
+                <label class="block">Binary</label><input id="progBin" oninput="progSync('bin')" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="101010" />
+                <label class="block">Hex</label><input id="progHex" oninput="progSync('hex')" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="2A" />
+                <label class="block">Octal</label><input id="progOct" oninput="progSync('oct')" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="52" />
+              </div>
+              <div class="space-y-2">
+                <h4 class="text-xs font-semibold text-sky-300">Bitwise Ops</h4>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="progBitA" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="Operand A" />
+                  <input id="progBitB" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="Operand B" />
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <button onclick="runBit('and')" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-[0.7rem]">&amp;</button>
+                  <button onclick="runBit('or')" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-[0.7rem]">|</button>
+                  <button onclick="runBit('xor')" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-[0.7rem]">XOR</button>
+                  <button onclick="runBit('not')" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-[0.7rem]">NOT A</button>
+                  <button onclick="runBit('shl')" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-[0.7rem]">&lt;&lt;</button>
+                  <button onclick="runBit('shr')" class="calc-btn px-2 py-1.5 rounded-lg font-mono text-[0.7rem]">&gt;&gt;</button>
+                </div>
+                <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3">
+                  <pre id="progBitResult" class="font-mono text-[0.75rem] text-emerald-300 whitespace-pre-wrap">Result...</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-solve" class="hidden space-y-3">
+            <h3 class="text-sm md:text-base font-semibold text-sky-300 flex items-center gap-2">
+              <span class="inline-flex h-2 w-2 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.9)]"></span>
+              Numeric Solve
+            </h3>
+            <div class="space-y-3 text-xs">
+              <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 grid grid-cols-1 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+                <div class="space-y-2">
+                  <h4 class="text-xs font-semibold text-sky-300">Derivative at x₀</h4>
+                  <input id="solveDerivExpr" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="sin(x)*x^2" />
+                  <input id="solveDerivX0" type="number" value="0" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="x0" />
+                  <button onclick="solveDerivative()" class="calc-btn-main px-3 py-1.5 rounded-lg">Compute</button>
+                </div>
+                <pre id="solveDerivOutput" class="p-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.75rem] text-emerald-300"></pre>
+              </div>
+              <div class="rounded-xl bg-slate-950/90 border border-slate-700/90 p-3 grid grid-cols-1 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-3">
+                <div class="space-y-2">
+                  <h4 class="text-xs font-semibold text-sky-300">Integral [a, b]</h4>
+                  <input id="solveIntExpr" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono" placeholder="x^2" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <input id="solveIntA" type="number" value="0" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80" placeholder="a" />
+                    <input id="solveIntB" type="number" value="1" class="w-full px-2 py-1.5 rounded-lg bg-slate-950/80 border border-slate-700/80" placeholder="b" />
+                  </div>
+                  <button onclick="solveIntegral()" class="calc-btn-main px-3 py-1.5 rounded-lg">Compute</button>
+                </div>
+                <pre id="solveIntOutput" class="p-2 rounded-lg bg-slate-950/80 border border-slate-700/80 font-mono text-[0.75rem] text-emerald-300"></pre>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="w-full max-w-6xl mt-4 text-[0.65rem] text-slate-500 flex justify-between">
+      <span>COPYRIGHT 2026 MOONSKAI LABS LLC ALL RIGHTS RESRVED .</span>
+      <span>Math: math.js · Graphs: Chart.js</span>
+    </footer>
+  </div>
+
+  <script>
+    /* STATE */
+    let expression = ""; let display = "0"; let ans = 0; let memory = 0; let angleMode = "RAD";
+    let graphChart = null, dataChart = null;
+
+    /* INIT */
+    document.addEventListener('DOMContentLoaded', () => {
+      updateDisplay(); updateGeom2DFields(); updateGeom3DFields();
+      math.config({ number:'number', precision:14 });
+      
+      // Tabs
+      document.querySelectorAll('[data-tab-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-tab-target]').forEach(b => { b.classList.remove('tab-pill-active'); b.classList.add('tab-pill-inactive'); });
+          btn.classList.remove('tab-pill-inactive'); btn.classList.add('tab-pill-active');
+          document.querySelectorAll('[id^="tab-"]').forEach(p => p.classList.add('hidden'));
+          document.getElementById('tab-' + btn.dataset.tabTarget).classList.remove('hidden');
+        });
+      });
+
+      // Keys
+      document.querySelectorAll('[data-key]').forEach(b => b.addEventListener('click', () => pushKey(b.dataset.key)));
+      document.querySelectorAll('[data-op]').forEach(b => b.addEventListener('click', () => pushOp(b.dataset.op)));
+      document.querySelectorAll('[data-func]').forEach(b => b.addEventListener('click', () => pushFunc(b.dataset.func)));
+      document.querySelectorAll('[data-mem]').forEach(b => b.addEventListener('click', () => memOp(b.dataset.mem)));
+      document.querySelector('[data-eval]').addEventListener('click', evalExpr);
+    });
+
+    /* CORE */
+    function updateDisplay(val) {
+      document.getElementById('expression-display').textContent = expression;
+      document.getElementById('main-display').textContent = val !== undefined ? val : (expression||"0");
+      document.getElementById('memory-indicator').textContent = memory;
+      document.getElementById('angle-mode-pill').textContent = "Angle: "+angleMode;
+    }
+    
+    function pushKey(k) {
+      if(k==='mode-clear'){ expression=""; display="0"; }
+      else if(k==='mode-del'){ expression=expression.slice(0,-1); }
+      else if(k==='mode-rad'){ angleMode='RAD'; } else if(k==='mode-deg'){ angleMode='DEG'; }
+      else expression+=k; 
+      updateDisplay();
+    }
+    function pushOp(op) { expression += (op==='×'?'*':op==='÷'?'/':op); updateDisplay(); }
+    function pushFunc(f) {
+      if(f==='sqrt') expression+='sqrt('; 
+      else if(f==='square') expression+='^2';
+      else if(f==='pi') expression+='pi'; // FIX: Constant
+      else if(f==='e') expression+='e';   // FIX: Constant
+      else if(f==='rand') expression+='random(';
+      else if(f==='inv') expression+='^(-1)';
+      else if(f==='factorial') expression+='!';
+      else if(f==='ans') expression+='ans';
+      else if(['sin','cos','tan'].includes(f) && angleMode==='DEG') expression+=f+'d(';
+      else expression+=f+'(';
+      updateDisplay();
+    }
+    function memOp(op){
+      const v = parseFloat(document.getElementById('main-display').textContent)||0;
+      if(op==='mc') memory=0; else if(op==='mr') expression+=memory; else if(op==='mplus') memory+=v; else if(op==='mminus') memory-=v;
+      updateDisplay();
+    }
+    function evalExpr(){
+      try {
+        const res = math.evaluate(expression, {ans, memory, pi:Math.PI, e:Math.E});
+        if(typeof res==='function') throw new Error("Invalid");
+        ans = res; updateDisplay(res.toString());
+      } catch(e) { updateDisplay("Error"); }
+    }
+
+    /* UNITS */
+    function convertUnits() {
+      const v = document.getElementById('unitVal').value;
+      const t = document.getElementById('unitTarget').value;
+      if(!v || !t) return;
+      try {
+        const res = math.evaluate(`${v} to ${t}`);
+        if(typeof res === 'function') throw new Error("Fn");
+        document.getElementById('unitResult').textContent = res.toString();
+      } catch(e) { document.getElementById('unitResult').textContent = "Error"; }
+    }
+    function insertConst(c) {
+      const map = { c:"299792458 m/s", G:"6.674e-11", h:"6.626e-34 J s", N_A:"6.022e23" };
+      if(map[c]) document.getElementById('unitVal').value = map[c];
+    }
+
+    /* FINANCE */
+    function calcFinance() {
+      const P = +document.getElementById('finP').value, r = +document.getElementById('finR').value/100;
+      const t = +document.getElementById('finT').value, n = +document.getElementById('finN').value;
+      const res = P * Math.pow((1+r/n), n*t);
+      document.getElementById('finResult').textContent = new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(res);
+    }
+
+    /* GRAPH (Multi + Polar) */
+    function plotGraph(){
+      const exprs = document.getElementById('graphExpr').value.split(',');
+      const min = +document.getElementById('graphXMin').value, max = +document.getElementById('graphXMax').value;
+      const polar = document.getElementById('graphPolar').checked;
+      const ctx = document.getElementById('graphCanvas').getContext('2d');
+      const colors = ['#38bdf8', '#f472b6', '#34d399', '#a78bfa'];
+      
+      const datasets = exprs.map((e,i)=>{
+        const data=[]; 
+        for(let x=min; x<=max; x+=0.1){
+          try{ 
+            const y = math.evaluate(e,{x, t:x, theta:x});
+            if(polar) data.push({x:y*Math.cos(x), y:y*Math.sin(x)}); else data.push({x,y});
+          }catch{}
+        }
+        return { label:e.trim(), data, borderColor:colors[i%4], borderWidth:2, pointRadius:0, showLine:true };
+      });
+      if(graphChart) graphChart.destroy();
+      graphChart = new Chart(ctx, { type:'scatter', data:{datasets}, options:{responsive:true,maintainAspectRatio:false} });
+    }
+
+    /* ALGEBRA */
+    function doCAS(mode){
+      try {
+        const val = document.getElementById('casInput').value;
+        const res = mode==='simplify' ? math.simplify(val) : math.derivative(val, 'x');
+        document.getElementById('casOutput').textContent = res.toString();
+      } catch(e) { document.getElementById('casOutput').textContent = "Error"; }
+    }
+
+    /* GEOMETRY (Restored & Expanded) */
+    function createInput(id, lbl) { return `<div><label class="text-[0.65rem] text-slate-400">${lbl}</label><input id="${id}" type="number" class="w-full px-2 py-1 bg-slate-950/80 border border-slate-700/80 rounded text-xs"></div>`; }
+    
+    function updateGeom2DFields() {
+      const s = document.getElementById('geom2dShape').value;
+      const div = document.getElementById('geom2dInputs');
+      div.innerHTML = '';
+      if(s==='circle') div.innerHTML = createInput('g2p1','Radius (r)');
+      else if(s==='rectangle') div.innerHTML = createInput('g2p1','Width') + createInput('g2p2','Height');
+      else if(s==='triangle-bh') div.innerHTML = createInput('g2p1','Base') + createInput('g2p2','Height');
+      else if(s==='triangle-sss') div.innerHTML = createInput('g2p1','Side a') + createInput('g2p2','Side b') + createInput('g2p3','Side c');
+      else if(s==='trapezoid') div.innerHTML = createInput('g2p1','Base a') + createInput('g2p2','Base b') + createInput('g2p3','Height');
+      else if(s==='regular-polygon') div.innerHTML = createInput('g2p1','Sides (n)') + createInput('g2p2','Side Len (s)');
+      else if(s==='ellipse') div.innerHTML = createInput('g2p1','Major (a)') + createInput('g2p2','Minor (b)');
+      else if(s==='sector') div.innerHTML = createInput('g2p1','Radius (r)') + createInput('g2p2','Angle deg');
+    }
+
+    function computeGeom2D() {
+      const s = document.getElementById('geom2dShape').value;
+      const p1 = +document.getElementById('g2p1').value;
+      const p2 = document.getElementById('g2p2')?.value ? +document.getElementById('g2p2').value : 0;
+      const p3 = document.getElementById('g2p3')?.value ? +document.getElementById('g2p3').value : 0;
+      let res = "";
+      try {
+        if(s==='circle') res = `Area: ${(Math.PI*p1*p1).toFixed(4)}`;
+        else if(s==='rectangle') res = `Area: ${p1*p2}`;
+        else if(s==='triangle-bh') res = `Area: ${0.5*p1*p2}`;
+        else if(s==='triangle-sss') { const k=(p1+p2+p3)/2; res = `Area: ${Math.sqrt(k*(k-p1)*(k-p2)*(k-p3)).toFixed(4)}`; }
+        else if(s==='trapezoid') res = `Area: ${(0.5*(p1+p2)*p3).toFixed(4)}`;
+        else if(s==='ellipse') res = `Area: ${(Math.PI*p1*p2).toFixed(4)}`;
+        else if(s==='sector') res = `Area: ${(Math.PI*p1*p1*(p2/360)).toFixed(4)}`;
+        else if(s==='regular-polygon') res = `Area: ${(0.25*p1*p2*p2*(1/Math.tan(Math.PI/p1))).toFixed(4)}`;
+      } catch(e){}
+      document.getElementById('geom2dOutput').textContent = res;
+    }
+
+    function updateGeom3DFields() {
+      const s = document.getElementById('geom3dShape').value;
+      const div = document.getElementById('geom3dInputs');
+      div.innerHTML = '';
+      if(s==='torus') div.innerHTML = createInput('g3p1','Major R') + createInput('g3p2','Tube r');
+      else if(s==='pyramid') div.innerHTML = createInput('g3p1','Base Edge') + createInput('g3p2','Height');
+      else if(s==='sphere') div.innerHTML = createInput('g3p1','Radius');
+      else if(s==='box') div.innerHTML = createInput('g3p1','Width') + createInput('g3p2','Height') + createInput('g3p3','Depth');
+      else if(s==='cylinder'||s==='cone') div.innerHTML = createInput('g3p1','Radius') + createInput('g3p2','Height');
+    }
+
+    function computeGeom3D() {
+      const s = document.getElementById('geom3dShape').value;
+      const p1 = +document.getElementById('g3p1').value;
+      const p2 = document.getElementById('g3p2')?.value ? +document.getElementById('g3p2').value : 0;
+      const p3 = document.getElementById('g3p3')?.value ? +document.getElementById('g3p3').value : 0;
+      let res = "";
+      if(s==='torus') res = `Vol: ${(2*Math.PI*Math.PI*p1*p2*p2).toFixed(4)}`;
+      if(s==='pyramid') res = `Vol: ${((p1*p1*p2)/3).toFixed(4)}`;
+      if(s==='sphere') res = `Vol: ${((4/3)*Math.PI*Math.pow(p1,3)).toFixed(4)}`;
+      if(s==='cylinder') res = `Vol: ${(Math.PI*p1*p1*p2).toFixed(4)}`;
+      if(s==='cone') res = `Vol: ${((Math.PI*p1*p1*p2)/3).toFixed(4)}`;
+      if(s==='box') res = `Vol: ${p1*p2*p3}`;
+      document.getElementById('geom3dOutput').textContent = res;
+    }
+
+    /* PROGRAMMER (Restored) */
+    function progSync(src){
+      const v = document.getElementById('prog'+(src.charAt(0).toUpperCase()+src.slice(1))).value;
+      if(!v) return;
+      const n = parseInt(v, src==='dec'?10:src==='hex'?16:src==='oct'?8:2);
+      if(src!=='dec') document.getElementById('progDec').value = isNaN(n)?'':n;
+      if(src!=='hex') document.getElementById('progHex').value = isNaN(n)?'':n.toString(16).toUpperCase();
+      if(src!=='bin') document.getElementById('progBin').value = isNaN(n)?'':n.toString(2);
+      if(src!=='oct') document.getElementById('progOct').value = isNaN(n)?'':n.toString(8);
+    }
+    function runBit(op) {
+      const A = parseInt(document.getElementById('progBitA').value);
+      const B = parseInt(document.getElementById('progBitB').value);
+      let res = 0;
+      if(op==='and') res = A&B; else if(op==='or') res=A|B; else if(op==='xor') res=A^B; else if(op==='not') res=~A; else if(op==='shl') res=A<<B; else if(op==='shr') res=A>>B;
+      document.getElementById('progBitResult').textContent = `DEC: ${res}\nHEX: ${res.toString(16).toUpperCase()}\nBIN: ${res.toString(2)}`;
+    }
+
+    /* STATS & DATA (Colored) */
+    function importCSV(input) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const nums = e.target.result.match(/-?\d+(\.\d+)?/g);
+        if(nums) document.getElementById('statsData').value = nums.join(', ');
+      };
+      reader.readAsText(input.files[0]);
+    }
+    function computeStats(){
+      const d = document.getElementById('statsData').value.split(/[\s,]+/).map(Number).filter(n=>!isNaN(n));
+      if(!d.length) return;
+      document.getElementById('statsOutput').textContent = `Mean: ${math.mean(d).toFixed(4)}\nMedian: ${math.median(d)}\nStdDev: ${math.std(d).toFixed(4)}\nMax: ${math.max(d)}\nMin: ${math.min(d)}`;
+    }
+    function plotDataChart(){
+      const raw=document.getElementById('dataInput').value.split('\n');
+      const l=[], d=[];
+      raw.forEach(r=>{ const p=r.split(','); if(p.length>1){ l.push(p[0]); d.push(+p[1]); } });
+      const ctx=document.getElementById('dataCanvas').getContext('2d');
+      // Fix colors
+      const colors = ['#22d3ee', '#f472b6', '#34d399', '#a78bfa', '#fbbf24', '#60a5fa'];
+      
+      if(dataChart) dataChart.destroy();
+      dataChart = new Chart(ctx, { 
+        type: document.getElementById('dataChartType').value, 
+        data: {
+          labels:l, 
+          datasets:[{
+            label:'Val', 
+            data:d, 
+            backgroundColor: colors
+          }]
+        }, 
+        options:{responsive:true,maintainAspectRatio:false} 
+      });
+    }
+
+    /* MATRIX (Restored) */
+    function doMatrix(op){
+      try{ 
+        const getM = id => math.matrix(document.getElementById(id).value.trim().split('\n').map(r=>r.trim().split(/\s+/).map(Number)));
+        const A = getM('matrixA');
+        let r; 
+        if(op==='det') r=math.det(A); if(op==='inv') r=math.inv(A); if(op==='mul') r=math.multiply(A, getM('matrixB'));
+        document.getElementById('matrixOutput').textContent = r.toString();
+      } catch(e){ document.getElementById('matrixOutput').textContent="Error"; }
+    }
+
+    /* SOLVE (Restored) */
+    function solveDerivative(){
+        try{
+            const expr = document.getElementById('solveDerivExpr').value;
+            const x0 = +document.getElementById('solveDerivX0').value;
+            const res = math.derivative(expr, 'x').evaluate({x:x0});
+            document.getElementById('solveDerivOutput').textContent = res;
+        } catch(e){document.getElementById('solveDerivOutput').textContent="Error";}
+    }
+    function solveIntegral(){
+        try{
+            const expr = document.getElementById('solveIntExpr').value;
+            const a = +document.getElementById('solveIntA').value;
+            const b = +document.getElementById('solveIntB').value;
+            // Simpson's rule approx
+            const n=100, h=(b-a)/n;
+            let s = math.evaluate(expr,{x:a}) + math.evaluate(expr,{x:b});
+            for(let i=1; i<n; i+=2) s+=4*math.evaluate(expr,{x:a+i*h});
+            for(let i=2; i<n-1; i+=2) s+=2*math.evaluate(expr,{x:a+i*h});
+            document.getElementById('solveIntOutput').textContent = (s*h/3).toFixed(6);
+        } catch(e){document.getElementById('solveIntOutput').textContent="Error";}
+    }
+
+    /* SAVE/LOAD */
+    function saveWorkspace() {
+      const s = { 
+        console: document.getElementById('consoleInput').value,
+        graph: document.getElementById('graphExpr').value,
+        stats: document.getElementById('statsData').value,
+        unitV: document.getElementById('unitVal').value,
+        unitT: document.getElementById('unitTarget').value
+      };
+      const b = new Blob([JSON.stringify(s)],{type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'moonskai_calc.json'; a.click();
+    }
+    function loadWorkspace(inp) {
+      const f = inp.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = e => {
+        const s = JSON.parse(e.target.result);
+        if(s.console) document.getElementById('consoleInput').value = s.console;
+        if(s.graph) document.getElementById('graphExpr').value = s.graph;
+        if(s.stats) document.getElementById('statsData').value = s.stats;
+        if(s.unitV) document.getElementById('unitVal').value = s.unitV;
+        if(s.unitT) document.getElementById('unitTarget').value = s.unitT;
+        alert('Loaded');
+      };
+      r.readAsText(f);
+    }
+    function clearConsole(){ document.getElementById('consoleInput').value=''; document.getElementById('consoleOutput').textContent=''; }
+  </script>
+</body>
+</html>
