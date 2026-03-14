@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#020617">
-  <!-- PWA: Apple / Windows install meta -->
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -16,6 +15,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png"/>
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Space Grotesk','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
@@ -110,7 +110,6 @@
 <div class="relative flex flex-col items-center px-3 py-4 md:px-6 md:py-8 min-h-screen">
 
   <!-- HEADER -->
-  <p class="text-[.55rem] text-slate-600 tracking-[.08em] uppercase mt-0.5">© 2026 Moonskai Labs L.L.C. All Rights Reserved</p>
   <header class="w-full max-w-6xl mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
     <div class="flex items-center gap-4">
       <div class="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#38bdf8,#6366f1,#1e3a5f);box-shadow:0 0 24px rgba(56,189,248,.4)">
@@ -642,27 +641,14 @@ async function renderPluginList() {
     </div>`;
   }).join('');
 }
-
-<!-- PWA: Service Worker registration -->
+</script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then(reg => {
-          console.log('[SW] Registered, scope:', reg.scope);
-          // Notify user when an update is available
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[SW] Update available — reload to apply');
-              }
-            });
-          });
-        })
+        .then(reg => console.log('[SW] Registered, scope:', reg.scope))
         .catch(err => console.warn('[SW] Registration failed:', err));
     });
   }
-</script>
 </body>
 </html>
