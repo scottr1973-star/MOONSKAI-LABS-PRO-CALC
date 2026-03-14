@@ -9,7 +9,7 @@
    - Everything else:          Network-first → cache fallback
 ═══════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'moonskai-core-v5.0';
+const CACHE_VERSION = 'moonskai-core-v5.1';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const CDN_CACHE     = `${CACHE_VERSION}-cdn`;
 const PLUGIN_CACHE  = `${CACHE_VERSION}-plugins`;
