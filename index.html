@@ -1,654 +1,648 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Moonskai Core | Calc Engine</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#020617">
-  <meta name="mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="Moonskai"/>
-  <meta name="application-name" content="Moonskai Core"/>
-  <meta name="msapplication-TileColor" content="#020617"/>
-  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Space Grotesk','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']}}}}</script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjs@11.11.0/lib/browser/math.js"></script>
-  <style>
-    body{background:radial-gradient(ellipse at 20% 0%,#0c1a3a,#020617 50%,#000);color:#e2e8f0;font-family:'Space Grotesk',sans-serif;}
-    .fc-card{background:linear-gradient(135deg,rgba(56,189,248,.06),rgba(10,22,40,.98));border:1px solid rgba(56,189,248,.2);border-radius:1.25rem;box-shadow:0 30px 70px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(24px);}
-    .fc-soft{background:linear-gradient(135deg,rgba(99,102,241,.04),rgba(10,22,40,.97));border:1px solid rgba(51,65,85,.8);border-radius:1.25rem;box-shadow:0 24px 50px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.03);}
-    .btn-main{background:linear-gradient(135deg,#38bdf8,#2563eb 50%,#1e1b4b);border:1px solid rgba(147,197,253,.7);color:#020617;font-weight:700;cursor:pointer;transition:all .1s;font-family:'JetBrains Mono',monospace;}
-    .btn-main:hover{filter:brightness(1.1);transform:translateY(-1px);}
-    .btn-main:active{transform:translateY(1px) scale(.98);}
-    .btn{background:linear-gradient(180deg,#111827,#020617);border:1px solid rgba(30,58,138,.8);color:#e2e8f0;cursor:pointer;transition:all .1s;font-family:'JetBrains Mono',monospace;}
-    .btn:hover{filter:brightness(1.12);transform:translateY(-1px);border-color:rgba(56,189,248,.5);}
-    .btn:active{transform:translateY(1px) scale(.98);}
-    /* tab scroll */
-    .tab-bar-wrap{border:1px solid rgba(51,65,85,.7);border-radius:999px;background:rgba(10,22,40,.8);overflow:hidden;min-width:0;}
-    .tab-bar{display:flex;flex-wrap:nowrap;overflow-x:scroll;gap:.25rem;padding:.25rem;min-width:0;-webkit-overflow-scrolling:touch;}
-    .tab-bar::-webkit-scrollbar{height:3px;}
-    .tab-bar::-webkit-scrollbar-track{background:transparent;}
-    .tab-bar::-webkit-scrollbar-thumb{background:rgba(99,102,241,.5);border-radius:999px;}
-    .tab-pill{flex:0 0 auto;}
-    .tab-pill{flex-shrink:0;border-radius:999px;border:1px solid transparent;padding:.25rem .75rem;cursor:pointer;white-space:nowrap;font-size:.72rem;font-weight:500;transition:all .15s;user-select:none;}
-    .tab-pill.active{border-color:rgba(99,102,241,.9);background:linear-gradient(135deg,rgba(99,102,241,.2),rgba(10,22,40,.95));box-shadow:0 0 12px rgba(99,102,241,.4);color:#e2e8f0;}
-    .tab-pill.inactive{border-color:rgba(30,64,175,.5);background:rgba(10,22,40,.9);color:#64748b;}
-    .tab-pill.inactive:hover{color:#cbd5e1;border-color:rgba(56,189,248,.4);}
-    input,select,textarea{background:rgba(10,22,40,.9)!important;border:1px solid rgba(51,65,85,.8)!important;color:#e2e8f0!important;font-family:'JetBrains Mono',monospace;border-radius:.5rem;outline:none;transition:border-color .15s;}
-    input:focus,select:focus,textarea:focus{border-color:#38bdf8!important;box-shadow:0 0 0 2px rgba(56,189,248,.15)!important;}
-    select option{background:#0d1f35;}
-    .panel{background:rgba(5,14,30,.9);border:1px solid rgba(51,65,85,.7);border-radius:.75rem;}
-    .res{color:#34d399;font-family:'JetBrains Mono',monospace;}
-    .sec{color:#38bdf8;font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;}
-    ::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(75,85,99,.6);border-radius:999px;}
-    .hist-item{border-bottom:1px solid rgba(51,65,85,.3);cursor:pointer;}
-    .hist-item:hover{background:rgba(56,189,248,.05);}
-    /* Plugin manager dialog */
-    .plugin-dialog{position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,.88);backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;}
-    .plugin-dialog.open{display:flex;}
-    .plugin-dialog-box{width:100%;max-width:540px;margin:1rem;background:rgba(10,22,40,.99);border:1px solid rgba(56,189,248,.25);border-radius:1.25rem;box-shadow:0 40px 80px rgba(0,0,0,.95);overflow:hidden;max-height:90vh;display:flex;flex-direction:column;}
-    .plugin-row{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem;border-bottom:1px solid rgba(51,65,85,.5);}
-    .plugin-row:last-child{border-bottom:none;}
-    .plugin-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-    .plugin-info{flex:1;min-width:0;}
-    .plugin-name{font-weight:600;font-size:.8rem;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .plugin-desc{font-size:.65rem;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .plugin-remove{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#f87171;border-radius:.4rem;padding:.2rem .55rem;font-size:.65rem;cursor:pointer;}
-    .plugin-remove:hover{background:rgba(239,68,68,.3);}
-    .empty-workbench{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:16rem;text-align:center;color:#334155;gap:1rem;}
-    @media(max-width:480px){html{font-size:10px}}
-  </style>
-</head>
-<body class="min-h-screen antialiased">
+// PATH: /time_machine.js
+// FILE: time_machine.js
+// PURPOSE: Fresh Time Machine plugin for Moonskai Editor.
+// BEHAVIOR:
+// - Snapshots are grouped by the CURRENT editor model URI.
+// - Newest snapshot appears at the TOP of the left pane.
+// - Older snapshots stay below it.
+// - Left pane scrolls independently.
+// - Right pane always shows the selected snapshot content.
+// - Restore replaces current editor contents with the selected snapshot.
+// - Import attaches snapshots to the CURRENT file so they appear immediately.
+// Created by Scott Russo.
 
-<!-- ambient glows -->
-<div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-  <div class="absolute -top-48 -left-32 h-96 w-96 rounded-full opacity-20 blur-3xl" style="background:radial-gradient(circle,#0ea5e9,transparent)"></div>
-  <div class="absolute top-1/3 -right-40 h-[30rem] w-[30rem] rounded-full opacity-15 blur-3xl" style="background:radial-gradient(circle,#6366f1,transparent)"></div>
-  <div class="absolute bottom-0 left-1/2 -translate-x-1/2 h-64 w-[40rem] rounded-full opacity-10 blur-3xl" style="background:radial-gradient(circle,#22d3ee,transparent)"></div>
-</div>
+(() => {
+  if (!window.Moonskai) return;
+  if (window.__msk_time_machine_clean_v1) return;
+  window.__msk_time_machine_clean_v1 = true;
 
-<!-- PLUGIN MANAGER DIALOG -->
-<div class="plugin-dialog" id="pluginDialog">
-  <div class="plugin-dialog-box">
-    <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid rgba(51,65,85,.6)">
-      <div>
-        <div class="text-base font-semibold text-white">Plugin Manager</div>
-        <div class="text-[.65rem] text-slate-400 mt-0.5">Install .js module files to extend the calculator</div>
-      </div>
-      <button onclick="closePlugins()" class="btn px-3 py-1.5 rounded-lg text-xs">✕ Close</button>
-    </div>
+  const PANEL_ID = "msk-time-machine-panel";
+  const STORE_KEY = "msk_time_machine_snapshots_clean_v1";
+  const PANEL_STATE_KEY = "msk_time_machine_panel_state_clean_v1";
+  const MAX_SNAPSHOTS = 1000;
 
-    <div class="px-5 py-3" style="border-bottom:1px solid rgba(51,65,85,.4)">
-      <div class="text-[.65rem] text-slate-500 mb-2 uppercase tracking-widest">Install a module</div>
-      <div class="flex gap-2">
-        <button onclick="document.getElementById('pluginFileIn').click()" class="btn-main flex-1 py-2 rounded-xl text-xs">Install Plugin (.js)…</button>
-        <button onclick="removeAllPlugins()" class="btn px-4 py-2 rounded-xl text-xs text-red-400" style="border-color:rgba(239,68,68,.4)">Remove All</button>
-      </div>
-      <input type="file" id="pluginFileIn" accept=".js,text/javascript" multiple style="display:none" onchange="installPluginsFromFiles(this)">
-      <div class="text-[.6rem] text-slate-600 mt-1.5">Plugins are stored locally in this browser (IndexedDB). They reload automatically on next visit.</div>
-    </div>
+  let panel = null;
+  let selectedSnapshotId = null;
 
-    <div class="flex-1 overflow-y-auto" id="pluginListEl">
-      <div class="text-[.65rem] text-slate-500 px-5 py-3">No plugins installed yet.</div>
-    </div>
-
-    <div class="px-5 py-3" style="border-top:1px solid rgba(51,65,85,.4)">
-      <button onclick="closePlugins()" class="btn-main w-full py-2 rounded-xl text-xs">Done</button>
-    </div>
-  </div>
-</div>
-
-<div class="relative flex flex-col items-center px-3 py-4 md:px-6 md:py-8 min-h-screen">
-
-  <!-- HEADER -->
-  <header class="w-full max-w-6xl mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-    <div class="flex items-center gap-4">
-      <div class="h-12 w-12 rounded-2xl flex items-center justify-center shrink-0" style="background:linear-gradient(135deg,#38bdf8,#6366f1,#1e3a5f);box-shadow:0 0 24px rgba(56,189,248,.4)">
-        <span class="font-mono font-bold text-xl text-white">ƒ</span>
-      </div>
-      <div>
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white">MOONSKAI CORE</h1>
-        <p class="text-[.7rem] text-slate-400 tracking-[.15em] uppercase">Calculator Engine · Plugin Architecture</p>
-      </div>
-    </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <button onclick="openPlugins()" class="btn-main px-4 py-2 rounded-xl text-xs flex items-center gap-1.5">
-        <span style="font-size:1rem">⚡</span> Plugins <span id="pluginCountBadge" class="ml-1 bg-slate-800 text-sky-300 rounded-full px-1.5 py-0.5 text-[.6rem]">0</span>
-      </button>
-      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs" style="border:1px solid rgba(148,163,184,.3);background:rgba(10,22,40,.9)">
-        <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 inline-block" style="box-shadow:0 0 8px rgba(52,211,153,.9)"></span>
-        <span class="text-emerald-300 text-[.65rem] uppercase tracking-widest">Online</span>
-        <span class="text-slate-300 font-medium">v5.0</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- MAIN GRID -->
-  <main class="w-full max-w-6xl grid gap-4 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1.25fr)] items-stretch">
-
-    <!-- LEFT: CORE CALCULATOR — always present, never a plugin -->
-    <section class="fc-card p-4 md:p-5 flex flex-col gap-4">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h2 class="text-xs font-semibold tracking-[.3em] uppercase text-slate-400">Core Calculator</h2>
-          <p class="text-[.65rem] text-slate-500 mt-0.5">math.js engine · DEG/RAD · memory · history</p>
-        </div>
-        <div class="flex items-center gap-1.5 px-2 py-1 rounded-full text-[.65rem] font-mono shrink-0" style="background:rgba(2,6,23,.8);border:1px solid rgba(51,65,85,.6)">
-          <span class="h-1.5 w-1.5 rounded-full bg-sky-400 inline-block" style="box-shadow:0 0 6px rgba(56,189,248,.9)"></span>
-          <span id="anglePill" class="text-sky-300">RAD</span>
-        </div>
-      </div>
-      <!-- display -->
-      <div class="panel px-4 py-3 flex flex-col gap-1">
-        <div class="flex justify-between text-[.6rem] font-mono text-slate-500">
-          <span id="statusLine" class="truncate">Ready</span>
-          <span class="flex gap-3">mem <span id="memInd" class="text-emerald-400">0</span> ans <span id="ansInd" class="text-sky-300">0</span></span>
-        </div>
-        <div id="exprDisp" class="w-full min-h-[1rem] font-mono text-xs text-slate-400 break-all text-right"></div>
-        <div id="mainDisp" class="w-full text-3xl md:text-4xl font-mono font-light text-white text-right overflow-x-auto">0</div>
-      </div>
-      <!-- buttons -->
-      <div class="grid grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)] gap-3">
-        <div class="flex flex-col gap-2">
-          <div class="grid grid-cols-4 gap-1.5 text-xs">
-            <button data-key="mode-deg" class="btn px-2 py-1.5 rounded-lg">DEG</button>
-            <button data-key="mode-rad" class="btn px-2 py-1.5 rounded-lg opacity-60">RAD</button>
-            <button data-key="mode-clear" class="btn px-2 py-1.5 rounded-lg text-rose-300">AC</button>
-            <button data-key="mode-del" class="btn px-2 py-1.5 rounded-lg text-amber-300">⌫</button>
-          </div>
-          <div class="grid grid-cols-4 gap-1.5 text-base md:text-lg">
-            <button data-key="7" class="btn rounded-xl py-3">7</button><button data-key="8" class="btn rounded-xl py-3">8</button><button data-key="9" class="btn rounded-xl py-3">9</button><button data-op="÷" class="btn rounded-xl py-3 text-sky-300">÷</button>
-            <button data-key="4" class="btn rounded-xl py-3">4</button><button data-key="5" class="btn rounded-xl py-3">5</button><button data-key="6" class="btn rounded-xl py-3">6</button><button data-op="×" class="btn rounded-xl py-3 text-sky-300">×</button>
-            <button data-key="1" class="btn rounded-xl py-3">1</button><button data-key="2" class="btn rounded-xl py-3">2</button><button data-key="3" class="btn rounded-xl py-3">3</button><button data-op="-" class="btn rounded-xl py-3 text-sky-300">−</button>
-            <button data-key="0" class="btn rounded-xl py-3 col-span-2">0</button><button data-key="." class="btn rounded-xl py-3">.</button><button data-op="+" class="btn rounded-xl py-3 text-sky-300">+</button>
-            <button data-key="(" class="btn rounded-xl py-3">(</button><button data-key=")" class="btn rounded-xl py-3">)</button><button data-op="^" class="btn rounded-xl py-3 text-sky-300">xʸ</button>
-            <button data-eval class="btn-main rounded-xl py-3 text-lg">=</button>
-          </div>
-        </div>
-        <div class="flex flex-col gap-2 text-xs">
-          <div class="grid grid-cols-4 gap-1.5">
-            <button data-mem="mc" class="btn rounded-lg py-1.5">MC</button><button data-mem="mr" class="btn rounded-lg py-1.5">MR</button><button data-mem="m+" class="btn rounded-lg py-1.5">M+</button><button data-mem="m-" class="btn rounded-lg py-1.5">M−</button>
-          </div>
-          <div class="grid grid-cols-3 gap-1.5 text-[.75rem]">
-            <button data-func="pi" class="btn rounded-xl py-2">π</button><button data-func="e" class="btn rounded-xl py-2">e</button><button data-func="ans" class="btn rounded-xl py-2 text-sky-300">ans</button>
-            <button data-func="sqrt" class="btn rounded-xl py-2">√x</button><button data-func="sq" class="btn rounded-xl py-2">x²</button><button data-func="cu" class="btn rounded-xl py-2">x³</button>
-            <button data-func="inv" class="btn rounded-xl py-2">1/x</button><button data-func="abs" class="btn rounded-xl py-2">|x|</button><button data-func="rnd" class="btn rounded-xl py-2">rnd</button>
-            <button data-func="sin" class="btn rounded-xl py-2">sin</button><button data-func="cos" class="btn rounded-xl py-2">cos</button><button data-func="tan" class="btn rounded-xl py-2">tan</button>
-            <button data-func="asin" class="btn rounded-xl py-2">asin</button><button data-func="acos" class="btn rounded-xl py-2">acos</button><button data-func="atan" class="btn rounded-xl py-2">atan</button>
-            <button data-func="ln" class="btn rounded-xl py-2">ln</button><button data-func="log" class="btn rounded-xl py-2">log</button><button data-func="log2" class="btn rounded-xl py-2">log₂</button>
-            <button data-func="floor" class="btn rounded-xl py-2">⌊x⌋</button><button data-func="ceil" class="btn rounded-xl py-2">⌈x⌉</button><button data-func="fact" class="btn rounded-xl py-2 text-amber-300">n!</button>
-          </div>
-        </div>
-      </div>
-      <!-- history -->
-      <div class="panel p-2 max-h-28 overflow-y-auto">
-        <div class="text-[.6rem] text-slate-500 uppercase tracking-widest mb-1 px-1">History</div>
-        <div id="historyEl" class="space-y-0.5 font-mono text-[.65rem]"></div>
-      </div>
-    </section>
-
-    <!-- RIGHT: WORKBENCH — populated entirely by plugins -->
-    <section class="fc-soft p-4 md:p-5 flex flex-col gap-3" style="min-width:0;overflow:hidden;">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xs font-semibold tracking-[.3em] uppercase text-slate-400">Workbench</h2>
-          <p class="text-[.65rem] text-slate-500" id="workbenchSub">No modules installed</p>
-        </div>
-      </div>
-      <!-- scrollable tab bar — outer clips, inner scrolls -->
-      <div class="tab-bar-wrap"><div class="tab-bar" id="tabBar"></div></div>
-      <!-- plugin panels mount here -->
-      <div class="flex-1" id="workbenchMount">
-        <div class="empty-workbench">
-          <div class="text-5xl">⚡</div>
-          <div>
-            <div class="text-sm font-semibold text-slate-400 mb-1">No modules installed</div>
-            <div class="text-xs text-slate-600">Click <span class="text-sky-400">Plugins</span> to install .js module files.<br>Each module extends the calculator with new capabilities.</div>
-          </div>
-          <button onclick="openPlugins()" class="btn-main px-5 py-2 rounded-xl text-xs mt-2">⚡ Open Plugin Manager</button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="w-full max-w-6xl mt-5 text-[.6rem] text-slate-700 flex justify-between">
-    <span>© 2026 MOONSKAI LABS L.L.C. ALL RIGHTS RESERVED</span>
-    <span>math.js · Chart.js · Plugin Engine v5.0</span>
-  </footer>
-</div>
-
-<script>
-/* ═══════════════════════════════════════════════════════
-   MOONSKAI CORE — CALCULATOR ENGINE + PLUGIN HOST
-   © 2026 Moonskai Labs L.L.C.
-═══════════════════════════════════════════════════════ */
-
-/* ── CORE STATE ── */
-let expr = '', ans = 0, mem = 0, angleMode = 'RAD';
-let calcHistory = [];
-
-/* ── CORE CALCULATOR ── */
-function updateDisplay(val) {
-  document.getElementById('exprDisp').textContent = expr;
-  document.getElementById('mainDisp').textContent = val !== undefined ? val : (expr || '0');
-  document.getElementById('memInd').textContent = mem;
-  document.getElementById('ansInd').textContent = typeof ans === 'number' ? +ans.toPrecision(10) : ans;
-  document.getElementById('anglePill').textContent = angleMode;
-}
-
-function pushKey(k) {
-  if (k === 'mode-clear') expr = '';
-  else if (k === 'mode-del') expr = expr.slice(0, -1);
-  else if (k === 'mode-rad') { angleMode = 'RAD'; document.querySelector('[data-key="mode-rad"]').classList.remove('opacity-60'); document.querySelector('[data-key="mode-deg"]').classList.add('opacity-60'); }
-  else if (k === 'mode-deg') { angleMode = 'DEG'; document.querySelector('[data-key="mode-deg"]').classList.remove('opacity-60'); document.querySelector('[data-key="mode-rad"]').classList.add('opacity-60'); }
-  else expr += k;
-  updateDisplay();
-}
-function pushOp(op) { expr += (op === '×' ? '*' : op === '÷' ? '/' : op); updateDisplay(); }
-function pushFunc(f) {
-  const trig = ['sin','cos','tan','asin','acos','atan'];
-  if (f === 'sqrt') expr += 'sqrt(';
-  else if (f === 'sq') expr += '^2';
-  else if (f === 'cu') expr += '^3';
-  else if (f === 'inv') expr += '^(-1)';
-  else if (f === 'abs') expr += 'abs(';
-  else if (f === 'floor') expr += 'floor(';
-  else if (f === 'ceil') expr += 'ceil(';
-  else if (f === 'pi') expr += 'pi';
-  else if (f === 'e') expr += 'e';
-  else if (f === 'rnd') expr += 'random()';
-  else if (f === 'fact') expr += '!';
-  else if (f === 'ans') expr += ans;
-  else if (f === 'log2') expr += 'log2(';
-  else if (f === 'log') expr += 'log10(';
-  else if (f === 'ln') expr += 'log(';
-  else if (trig.includes(f) && angleMode === 'DEG') expr += f + 'd(';
-  else expr += f + '(';
-  updateDisplay();
-}
-function memOp(op) {
-  const v = parseFloat(document.getElementById('mainDisp').textContent) || 0;
-  if (op === 'mc') mem = 0;
-  else if (op === 'mr') expr += mem;
-  else if (op === 'm+') mem += v;
-  else if (op === 'm-') mem -= v;
-  updateDisplay();
-}
-function evalExpr() {
-  if (!expr.trim()) return;
-  try {
-    const res = math.evaluate(expr, { ans, memory: mem, pi: Math.PI, e: Math.E });
-    const dv = typeof res === 'number' ? (Number.isInteger(res) ? res : +res.toPrecision(12)) : res.toString();
-    pushHistory(expr, dv);
-    ans = res; expr = '';
-    updateDisplay(String(dv));
-    document.getElementById('statusLine').textContent = 'OK ✓';
-  } catch(e) {
-    updateDisplay('Error');
-    document.getElementById('statusLine').textContent = '⚠ ' + e.message;
-    setTimeout(() => { document.getElementById('mainDisp').textContent = '0'; expr = ''; updateDisplay(); }, 1400);
+  function getEditor() {
+    return Moonskai.editor || null;
   }
-}
-function pushHistory(e, r) {
-  calcHistory.unshift({ e, r });
-  if (calcHistory.length > 12) calcHistory.pop();
-  document.getElementById('historyEl').innerHTML = calcHistory.map(h =>
-    `<div class="hist-item px-1 py-0.5 rounded flex justify-between gap-2 text-slate-400 hover:text-slate-200" onclick="expr='${h.r}';updateDisplay()">
-      <span class="truncate">${h.e}</span><span class="res shrink-0">${h.r}</span>
-    </div>`).join('');
-}
 
-/* ── BUTTON WIRING ── */
-document.addEventListener('DOMContentLoaded', () => {
-  math.config({ number: 'number', precision: 14 });
-  updateDisplay();
-
-  document.querySelectorAll('[data-key]').forEach(b => b.addEventListener('click', () => pushKey(b.dataset.key)));
-  document.querySelectorAll('[data-op]').forEach(b => b.addEventListener('click', () => pushOp(b.dataset.op)));
-  document.querySelectorAll('[data-func]').forEach(b => b.addEventListener('click', () => pushFunc(b.dataset.func)));
-  document.querySelectorAll('[data-mem]').forEach(b => b.addEventListener('click', () => memOp(b.dataset.mem)));
-  document.querySelector('[data-eval]').addEventListener('click', evalExpr);
-
-  document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'Enter') evalExpr();
-    else if (e.key === 'Backspace') { expr = expr.slice(0, -1); updateDisplay(); }
-    else if (e.key === 'Escape') { expr = ''; updateDisplay(); }
-    else if (/[\d.+\-*/()^%]/.test(e.key)) { expr += e.key; updateDisplay(); }
-  });
-
-  document.getElementById('pluginDialog').addEventListener('click', e => {
-    if (e.target === document.getElementById('pluginDialog')) closePlugins();
-  });
-
-  loadPluginsFromDB();
-});
-
-/* ══════════════════════════════════════════════════════════
-   PLUGIN ENGINE
-   Mirrors the Moonskai Editor plugin system:
-   - IndexedDB persistence (store: "calc-plugins")
-   - Plugins are .js files with // Name: / // Description: headers
-   - window.MoonskaiCalc is the API surface plugins hook into
-   - registerModule({id, name, icon, color, description, html, init}) adds a workbench tab
-══════════════════════════════════════════════════════════ */
-
-/* ── INDEXEDDB ── */
-const DB_NAME = 'MoonskaiCalcPlugins';
-const DB_VER  = 1;
-const STORE   = 'plugins';
-let _db = null;
-
-function openDB() {
-  if (_db) return Promise.resolve(_db);
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE, { keyPath: 'id' });
-    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-async function dbGetAll() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
-    req.onsuccess = e => resolve(e.target.result || []);
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-async function dbPut(record) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).put(record);
-    req.onsuccess = () => resolve();
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-async function dbDelete(id) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-async function dbClear() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readwrite').objectStore(STORE).clear();
-    req.onsuccess = () => resolve();
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-
-/* ── PLUGIN META EXTRACTION (same as Moonskai Editor) ── */
-function extractMeta(code) {
-  const meta = { name: '', description: '' };
-  const lines = String(code || '').split(/\r?\n/).slice(0, 60);
-  for (const line of lines) {
-    let m = line.match(/^\s*\/\/\s*Name\s*:\s*(.+)\s*$/i);
-    if (m && !meta.name) meta.name = m[1].trim();
-    m = line.match(/^\s*\/\/\s*Description\s*:\s*(.+)\s*$/i);
-    if (m && !meta.description) meta.description = m[1].trim();
-    if (meta.name && meta.description) break;
+  function getModel() {
+    const ed = getEditor();
+    return ed && typeof ed.getModel === "function" ? ed.getModel() : null;
   }
-  return meta;
-}
 
-function makeId() {
-  return 'plug-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
-}
+  function basename(path) {
+    const p = String(path || "").trim();
+    if (!p) return "";
+    const parts = p.split(/[\\/]/);
+    return parts[parts.length - 1] || p;
+  }
 
-/* ── THE API SURFACE ── */
-// Plugins access window.MoonskaiCalc to register themselves
-(function buildAPI() {
-  if (window.MoonskaiCalc && window.MoonskaiCalc.__ready) return;
-  window.MoonskaiCalc = window.MoonskaiCalc || {};
-  const api = window.MoonskaiCalc;
-  api.__ready = true;
-  api.version = '5';
+  function getCurrentFileInfo() {
+    const model = getModel();
+    if (!model) {
+      return {
+        fileKey: "uri:untitled",
+        fileName: "untitled"
+      };
+    }
 
-  // Expose the core calculator state so plugins can interact
-  api.getExpr    = () => expr;
-  api.setExpr    = (v) => { expr = String(v); updateDisplay(); };
-  api.getAns     = () => ans;
-  api.getAngle   = () => angleMode;
-  api.pushToExpr = (v) => { expr += String(v); updateDisplay(); };
-  api.evaluate   = (e) => math.evaluate(e, { ans, pi: Math.PI, e: Math.E });
-  api.math       = () => math;
+    const uriString =
+      model.uri && typeof model.uri.toString === "function"
+        ? String(model.uri.toString() || "").trim()
+        : "";
 
-  // Plugin-scoped storage
-  api.storageGet = async (pluginId, k) => {
-    try { return JSON.parse(localStorage.getItem(`msc:${pluginId}:${k}`)); } catch { return null; }
-  };
-  api.storageSet = async (pluginId, k, v) => {
-    try { localStorage.setItem(`msc:${pluginId}:${k}`, JSON.stringify(v)); } catch {}
-  };
+    const pathLike = String(model.uri?.path || model.uri?.fsPath || "").trim();
+    const fileName = basename(pathLike) || "untitled";
 
-  // Module registry
-  api._modules   = new Map(); // id -> module descriptor
-  api._activeTab = null;
+    return {
+      fileKey: uriString ? `uri:${uriString}` : `file:${fileName}`,
+      fileName
+    };
+  }
 
-  // The main hook: a plugin calls this to add a workbench tab
-  api.registerModule = function(descriptor) {
-    if (!descriptor || !descriptor.id) {
-      console.warn('[MoonskaiCalc] registerModule: missing id');
+  function loadAllSnapshots() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveAllSnapshots(rows) {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(Array.isArray(rows) ? rows : []));
+    } catch (_) {}
+  }
+
+  function trimSnapshots(rows) {
+    if (!Array.isArray(rows)) return [];
+    if (rows.length > MAX_SNAPSHOTS) {
+      rows.splice(0, rows.length - MAX_SNAPSHOTS);
+    }
+    return rows;
+  }
+
+  function getSnapshotsForCurrentFile() {
+    const current = getCurrentFileInfo();
+    return loadAllSnapshots()
+      .filter((snap) => snap && String(snap.fileKey || "") === current.fileKey)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  }
+
+  function makeSnapshotId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return `snap_${window.crypto.randomUUID()}`;
+    }
+    return `snap_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function formatDate(ts) {
+    try {
+      return new Date(ts).toLocaleString();
+    } catch (_) {
+      return String(ts || "");
+    }
+  }
+
+  function shortId(id) {
+    return String(id || "").slice(-6).toUpperCase();
+  }
+
+  function loadPanelState() {
+    try {
+      const raw = localStorage.getItem(PANEL_STATE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return {
+        top: typeof parsed?.top === "number" ? parsed.top : 70,
+        left: typeof parsed?.left === "number" ? parsed.left : Math.max(20, window.innerWidth - 760),
+        width: typeof parsed?.width === "number" ? parsed.width : 740,
+        height: typeof parsed?.height === "number" ? parsed.height : 560,
+        visible: parsed?.visible === true
+      };
+    } catch (_) {
+      return {
+        top: 70,
+        left: Math.max(20, window.innerWidth - 760),
+        width: 740,
+        height: 560,
+        visible: false
+      };
+    }
+  }
+
+  function savePanelState() {
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    try {
+      localStorage.setItem(
+        PANEL_STATE_KEY,
+        JSON.stringify({
+          top: Math.round(rect.top),
+          left: Math.round(rect.left),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          visible: panel.style.display !== "none"
+        })
+      );
+    } catch (_) {}
+  }
+
+  function clampPanelToViewport() {
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+    let left = rect.left;
+    let top = rect.top;
+
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (left + rect.width > window.innerWidth) left = Math.max(0, window.innerWidth - rect.width);
+    if (top + rect.height > window.innerHeight) top = Math.max(0, window.innerHeight - rect.height);
+
+    panel.style.left = `${Math.round(left)}px`;
+    panel.style.top = `${Math.round(top)}px`;
+    savePanelState();
+  }
+
+  function getSelectedSnapshot(snapshots) {
+    if (!Array.isArray(snapshots) || !snapshots.length) return null;
+    if (!selectedSnapshotId) return snapshots[0] || null;
+    return snapshots.find((snap) => snap.id === selectedSnapshotId) || snapshots[0] || null;
+  }
+
+  function getNameInput() {
+    return document.getElementById("mskTmName");
+  }
+
+  function clearNameInput() {
+    const el = getNameInput();
+    if (el) el.value = "";
+  }
+
+  function getSnapshotName() {
+    const el = getNameInput();
+    const value = String(el?.value || "").trim();
+    return value || "Snapshot";
+  }
+
+  function buildSnapshotFromEditor() {
+    const ed = getEditor();
+    const model = getModel();
+    if (!ed || !model) return null;
+
+    const current = getCurrentFileInfo();
+    const content = String(typeof model.getValue === "function" ? model.getValue() : "");
+
+    return {
+      id: makeSnapshotId(),
+      createdAt: Date.now(),
+      fileKey: current.fileKey,
+      fileName: current.fileName,
+      name: getSnapshotName(),
+      content,
+      lineCount: typeof model.getLineCount === "function" ? model.getLineCount() : 0,
+      charCount: content.length
+    };
+  }
+
+  function createSnapshot() {
+    const snap = buildSnapshotFromEditor();
+    if (!snap) return false;
+
+    const all = loadAllSnapshots();
+    all.push(snap);
+    trimSnapshots(all);
+    saveAllSnapshots(all);
+
+    selectedSnapshotId = snap.id;
+    clearNameInput();
+    return true;
+  }
+
+  function deleteSelectedSnapshot() {
+    const snaps = getSnapshotsForCurrentFile();
+    const selected = getSelectedSnapshot(snaps);
+    if (!selected) return;
+
+    const ok = confirm(`Delete snapshot "${selected.name || "Snapshot"}"?`);
+    if (!ok) return;
+
+    const all = loadAllSnapshots().filter((snap) => snap && snap.id !== selected.id);
+    saveAllSnapshots(all);
+
+    const next = getSnapshotsForCurrentFile();
+    selectedSnapshotId = next[0]?.id || null;
+
+    renderPanel(true);
+    Moonskai.showStatus?.("Snapshot deleted");
+  }
+
+  function restoreSelectedSnapshot() {
+    const snaps = getSnapshotsForCurrentFile();
+    const selected = getSelectedSnapshot(snaps);
+    if (!selected) {
+      Moonskai.showStatus?.("Select a snapshot to restore");
       return;
     }
-    const mod = {
-      id: String(descriptor.id),
-      name: String(descriptor.name || descriptor.id),
-      icon: String(descriptor.icon || '◆'),
-      color: String(descriptor.color || '#38bdf8'),
-      description: String(descriptor.description || ''),
-      html: typeof descriptor.html === 'function' ? descriptor.html : () => String(descriptor.html || ''),
-      init: typeof descriptor.init === 'function' ? descriptor.init : null,
-    };
-    api._modules.set(mod.id, mod);
-    rebuildWorkbench();
-    console.info('[MoonskaiCalc] Module registered:', mod.name);
-  };
 
-  // Unregister (called when plugin is removed)
-  api.unregisterModule = function(id) {
-    api._modules.delete(id);
-    rebuildWorkbench();
-  };
-})();
-
-/* ── WORKBENCH RENDERER ── */
-let _activeModuleId = null;
-
-function rebuildWorkbench() {
-  const tabBar = document.getElementById('tabBar');
-  const mount  = document.getElementById('workbenchMount');
-  const sub    = document.getElementById('workbenchSub');
-  const modules = Array.from(window.MoonskaiCalc._modules.values());
-
-  // Update badge + sub
-  document.getElementById('pluginCountBadge').textContent = modules.length;
-  sub.textContent = modules.length
-    ? `${modules.length} module${modules.length > 1 ? 's' : ''} loaded`
-    : 'No modules installed';
-
-  if (!modules.length) {
-    tabBar.innerHTML = '';
-    mount.innerHTML = `<div class="empty-workbench">
-      <div class="text-5xl">⚡</div>
-      <div>
-        <div class="text-sm font-semibold text-slate-400 mb-1">No modules installed</div>
-        <div class="text-xs text-slate-600">Click <span class="text-sky-400">Plugins</span> to install .js module files.</div>
-      </div>
-      <button onclick="openPlugins()" class="btn-main px-5 py-2 rounded-xl text-xs mt-2">⚡ Open Plugin Manager</button>
-    </div>`;
-    _activeModuleId = null;
-    return;
-  }
-
-  // If active tab was removed, fall back to first
-  if (!window.MoonskaiCalc._modules.has(_activeModuleId)) {
-    _activeModuleId = modules[0].id;
-  }
-
-  // Render tab pills
-  tabBar.innerHTML = modules.map(m =>
-    `<button class="tab-pill ${m.id === _activeModuleId ? 'active' : 'inactive'}"
-       onclick="switchModule('${m.id}')"
-       title="${m.description}">
-      <span style="margin-right:.3rem">${m.icon}</span>${m.name}
-    </button>`
-  ).join('');
-
-  // Render active panel
-  const active = window.MoonskaiCalc._modules.get(_activeModuleId);
-  if (active) {
-    mount.innerHTML = `<div id="module-panel-${active.id}">${active.html()}</div>`;
-    if (typeof active.init === 'function') {
-      try { active.init(); } catch(e) { console.error('[MoonskaiCalc] init failed:', active.name, e); }
+    const ed = getEditor();
+    const model = getModel();
+    if (!ed || !model || typeof model.setValue !== "function") {
+      Moonskai.showStatus?.("Editor not available");
+      return;
     }
-  }
-}
 
-function switchModule(id) {
-  if (!window.MoonskaiCalc._modules.has(id)) return;
-  _activeModuleId = id;
-  rebuildWorkbench();
-}
+    const ok = confirm(`Restore snapshot "${selected.name || "Snapshot"}"? This will replace the current editor contents.`);
+    if (!ok) return;
 
-/* ── PLUGIN RUNNER (eval in a clean scope) ── */
-function runPlugin(plugin) {
-  const code = String(plugin.code || '');
-  const meta = extractMeta(code);
-  meta.id   = plugin.id;
-  meta.name = meta.name || plugin.name || plugin.id;
-  const safeName = meta.name.replace(/[^a-z0-9]/gi, '-');
-  const wrapped = `(function(MoonskaiCalc){\n${code}\n//# sourceURL=moonskai-calc-plugin-${safeName}.js\n})(window.MoonskaiCalc);`;
-  try {
-    // eslint-disable-next-line no-new-func
-    new Function('MoonskaiCalc', wrapped)(window.MoonskaiCalc);
-    console.info('[MoonskaiCalc] Plugin executed:', meta.name);
-  } catch(e) {
-    console.error('[MoonskaiCalc] Plugin error:', meta.name, e);
-  }
-}
-
-/* ── BOOT: LOAD ALL STORED PLUGINS ── */
-async function loadPluginsFromDB() {
-  let list = [];
-  try { list = await dbGetAll(); } catch { list = []; }
-  for (const p of list) runPlugin(p);
-  renderPluginList();
-}
-
-/* ── INSTALL: FILE PICKER → INDEXEDDB → RUN ── */
-async function installPluginsFromFiles(input) {
-  const files = Array.from(input.files || []);
-  if (!files.length) return;
-  for (const file of files) {
-    const code = await readFileAsText(file);
-    const meta = extractMeta(code);
-    const record = {
-      id:   makeId(),
-      name: file.name,
-      displayName: meta.name || file.name,
-      description: meta.description || '',
-      code,
-      installedAt: Date.now()
-    };
     try {
-      await dbPut(record);
-      runPlugin(record);
-    } catch(e) {
-      console.error('[MoonskaiCalc] Failed to save plugin:', file.name, e);
+      model.setValue(String(selected.content || ""));
+      ed.focus?.();
+      renderPanel(true);
+      Moonskai.showStatus?.("Snapshot restored");
+    } catch (_) {
+      Moonskai.showStatus?.("Could not restore snapshot");
     }
   }
-  input.value = '';
-  renderPluginList();
-}
 
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload  = e => resolve(String(e.target.result || ''));
-    r.onerror = () => reject(new Error('Read failed'));
-    r.readAsText(file);
-  });
-}
+  async function exportSelectedSnapshot() {
+    const snaps = getSnapshotsForCurrentFile();
+    const selected = getSelectedSnapshot(snaps);
+    if (!selected) {
+      Moonskai.showStatus?.("Select a snapshot to export");
+      return;
+    }
 
-/* ── REMOVE A PLUGIN ── */
-async function removePlugin(id) {
-  // Find which module(s) the plugin registered (by re-running list after delete)
-  // Simplest: reload page after removal so all plugins re-run from scratch
-  const ok = confirm('Remove this plugin? The page will reload.');
-  if (!ok) return;
-  await dbDelete(id);
-  window.location.reload();
-}
+    const payload = {
+      kind: "moonskai-time-machine-snapshot",
+      version: 1,
+      exportedAt: Date.now(),
+      snapshot: selected
+    };
 
-async function removeAllPlugins() {
-  const ok = confirm('Remove ALL plugins? The page will reload.');
-  if (!ok) return;
-  await dbClear();
-  window.location.reload();
-}
+    const json = JSON.stringify(payload, null, 2);
+    const safeFile = String(selected.fileName || "snapshot").replace(/[^\w.-]+/g, "_");
+    const safeName = String(selected.name || "Snapshot").replace(/[^\w.-]+/g, "_");
+    const filename = `${safeFile}--${safeName}--${selected.id}.json`;
 
-/* ── PLUGIN MANAGER UI ── */
-function openPlugins() {
-  document.getElementById('pluginDialog').classList.add('open');
-  renderPluginList();
-}
-function closePlugins() {
-  document.getElementById('pluginDialog').classList.remove('open');
-}
+    if (typeof window.showSaveFilePicker === "function") {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: "JSON Files",
+              accept: { "application/json": [".json"] }
+            }
+          ]
+        });
 
-async function renderPluginList() {
-  const el = document.getElementById('pluginListEl');
-  let list = [];
-  try { list = await dbGetAll(); } catch { list = []; }
+        const writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        Moonskai.showStatus?.("Selected snapshot exported");
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+      }
+    }
 
-  if (!list.length) {
-    el.innerHTML = `<div class="text-[.65rem] text-slate-500 px-5 py-4">No plugins installed yet. Click "Install Plugin" above.</div>`;
-    document.getElementById('pluginCountBadge').textContent = 0;
-    return;
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    Moonskai.showStatus?.("Selected snapshot exported");
   }
 
-  document.getElementById('pluginCountBadge').textContent = list.length;
+  async function importSnapshots() {
+    let text = "";
 
-  el.innerHTML = list.map(p => {
-    // Find color from registered module if available
-    const mod = window.MoonskaiCalc._modules.get(p.id) ||
-      Array.from(window.MoonskaiCalc._modules.values()).find(m => p.code && p.code.includes(m.id));
-    const color = mod ? mod.color : '#64748b';
-    const name  = p.displayName || p.name || p.id;
-    const desc  = p.description || (mod ? mod.description : '');
-    const date  = p.installedAt ? new Date(p.installedAt).toLocaleDateString() : '';
-    return `<div class="plugin-row">
-      <div class="plugin-dot" style="background:${color}"></div>
-      <div class="plugin-info">
-        <div class="plugin-name">${name}</div>
-        <div class="plugin-desc">${desc || p.name}${date ? ' · installed ' + date : ''}</div>
+    if (typeof window.showOpenFilePicker === "function") {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [
+            {
+              description: "JSON Files",
+              accept: { "application/json": [".json"] }
+            }
+          ]
+        });
+
+        if (!handle) return;
+        const file = await handle.getFile();
+        text = await file.text();
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        alert("Could not open snapshot file.");
+        return;
+      }
+    } else {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json,application/json";
+      input.style.display = "none";
+      document.body.appendChild(input);
+
+      text = await new Promise((resolve) => {
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) {
+            input.remove();
+            resolve("");
+            return;
+          }
+          resolve(await file.text());
+          input.remove();
+        };
+        input.click();
+      });
+
+      if (!text) return;
+    }
+
+    try {
+      const parsed = JSON.parse(text);
+
+      let imported = [];
+      if (parsed?.snapshot && typeof parsed.snapshot === "object") {
+        imported = [parsed.snapshot];
+      } else if (Array.isArray(parsed?.snapshots)) {
+        imported = parsed.snapshots;
+      } else {
+        alert("Invalid snapshot file.");
+        return;
+      }
+
+      const current = getCurrentFileInfo();
+      const all = loadAllSnapshots();
+      let newestImportedId = null;
+
+      for (const raw of imported) {
+        const content = String(raw?.content || "");
+        const snap = {
+          id: String(raw?.id || makeSnapshotId()),
+          createdAt: Number(raw?.createdAt || raw?.ts || Date.now()),
+          fileKey: current.fileKey,
+          fileName: current.fileName,
+          name: String(raw?.name || raw?.label || "Imported Snapshot"),
+          content,
+          lineCount: Number(raw?.lineCount || raw?.lines || 0),
+          charCount: Number(raw?.charCount || raw?.size || content.length)
+        };
+        all.push(snap);
+        newestImportedId = snap.id;
+      }
+
+      trimSnapshots(all);
+      saveAllSnapshots(all);
+
+      selectedSnapshotId = newestImportedId;
+      renderPanel(true);
+      Moonskai.showStatus?.("Snapshot(s) imported");
+    } catch (_) {
+      alert("Could not import snapshot file.");
+    }
+  }
+
+  function ensurePanel() {
+    if (document.getElementById(PANEL_ID)) {
+      panel = document.getElementById(PANEL_ID);
+      return;
+    }
+
+    const state = loadPanelState();
+
+    panel = document.createElement("div");
+    panel.id = PANEL_ID;
+    panel.style.cssText = `
+      position: fixed;
+      top: ${state.top}px;
+      left: ${state.left}px;
+      width: ${state.width}px;
+      height: ${state.height}px;
+      min-width: 580px;
+      min-height: 400px;
+      background:#0B0F12;
+      color:#E9F6F2;
+      border:1px solid #1B2526;
+      border-radius:12px;
+      box-shadow:0 14px 40px rgba(0,0,0,.45);
+      z-index:10008;
+      display:${state.visible ? "flex" : "none"};
+      flex-direction:column;
+      overflow:hidden;
+      font-family:system-ui;
+      resize: both;
+    `;
+
+    panel.innerHTML = `
+      <div id="mskTmHeader" style="padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid #1B2526; background:#0F151A; cursor:move; user-select:none;">
+        <div style="display:flex; flex-direction:column; min-width:0; flex:1;">
+          <div style="font-weight:800; font-size:13px;">⏱️ Time Machine</div>
+          <div id="mskTmCurrentFile" style="font-size:11px; color:#9fb1b1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Current file</div>
+          <div style="font-size:10px; color:#7f8b8b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">© 2026 Moonskai Labs L.L.C. All Rights Reserved. moonskailabs.com</div>
+        </div>
+        <button id="mskTmClose" type="button">✕</button>
       </div>
-      <button class="plugin-remove" onclick="removePlugin('${p.id}')">Remove</button>
-    </div>`;
-  }).join('');
-}
-</script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('[SW] Registered, scope:', reg.scope))
-        .catch(err => console.warn('[SW] Registration failed:', err));
-    });
+
+      <div style="padding:10px 12px; border-bottom:1px solid #1B2526; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+        <input id="mskTmName" type="text" placeholder="Snapshot name..." style="flex:1 1 240px; min-width:200px; padding:8px 10px; border:1px solid #2d3a3b; border-radius:8px; background:#11181d; color:#E9F6F2; outline:none;">
+        <button id="mskTmCreate" type="button">Snapshot now</button>
+        <button id="mskTmExport" type="button">Export selected</button>
+        <button id="mskTmImport" type="button">Import</button>
+      </div>
+
+      <div style="display:flex; flex:1; min-height:0;">
+        <div id="mskTmList" style="flex:0 0 320px; width:320px; height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; border-right:1px solid #1B2526; box-sizing:border-box;"></div>
+        <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+          <div style="padding:10px 12px; border-bottom:1px solid #1B2526; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+            <div id="mskTmMeta" style="opacity:.85; font-size:12px;"></div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button id="mskTmRestore" type="button" disabled>Restore</button>
+              <button id="mskTmDelete" type="button" disabled>Delete</button>
+            </div>
+          </div>
+          <textarea id="mskTmPreview" style="flex:1; width:100%; padding:10px 12px; background:#0B0F12; color:#E9F6F2; border:0; outline:none; resize:none; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;"></textarea>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const header = panel.querySelector("#mskTmHeader");
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    header.addEventListener("mousedown", (e) => {
+      const target = e.target;
+      if (target && target.closest && target.closest("button")) return;
+
+      const rect = panel.getBoundingClientRect();
+      dragging = true;
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      panel.style.left = `${Math.round(rect.left)}px`;
+      panel.style.top = `${Math.round(rect.top)}px`;
+
+      try { e.preventDefault(); } catch (_) {}
+    }, true);
+
+    document.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      panel.style.left = `${Math.max(0, e.clientX - offsetX)}px`;
+      panel.style.top = `${Math.max(0, e.clientY - offsetY)}px`;
+    }, true);
+
+    document.addEventListener("mouseup", () => {
+      if (!dragging) return;
+      dragging = false;
+      clampPanelToViewport();
+    }, true);
+
+    const resizeObserver = new ResizeObserver(() => savePanelState());
+    resizeObserver.observe(panel);
+
+    window.addEventListener("resize", clampPanelToViewport);
+
+    panel.querySelector("#mskTmClose").onclick = () => {
+      panel.style.display = "none";
+      savePanelState();
+    };
+
+    panel.querySelector("#mskTmCreate").onclick = () => {
+      const ok = createSnapshot();
+      renderPanel(true);
+      Moonskai.showStatus?.(ok ? "Snapshot saved" : "Could not save snapshot");
+    };
+
+    panel.querySelector("#mskTmExport").onclick = exportSelectedSnapshot;
+    panel.querySelector("#mskTmImport").onclick = async () => {
+      await importSnapshots();
+      renderPanel(true);
+    };
+    panel.querySelector("#mskTmRestore").onclick = restoreSelectedSnapshot;
+    panel.querySelector("#mskTmDelete").onclick = deleteSelectedSnapshot;
   }
-</body>
-</html>
+
+  function renderPanel(scrollToSelection = false) {
+    ensurePanel();
+
+    const current = getCurrentFileInfo();
+    const snapshots = getSnapshotsForCurrentFile();
+
+    const currentFileEl = panel.querySelector("#mskTmCurrentFile");
+    const listEl = panel.querySelector("#mskTmList");
+    const metaEl = panel.querySelector("#mskTmMeta");
+    const previewEl = panel.querySelector("#mskTmPreview");
+    const restoreBtn = panel.querySelector("#mskTmRestore");
+    const deleteBtn = panel.querySelector("#mskTmDelete");
+
+    currentFileEl.textContent = `Current file: ${current.fileName}`;
+    listEl.innerHTML = "";
+    previewEl.value = "";
+    restoreBtn.disabled = true;
+    deleteBtn.disabled = true;
+
+    if (lastFileKey !== current.fileKey) {
+      selectedSnapshotId = snapshots[0]?.id || null;
+      lastFileKey = current.fileKey;
+    }
+
+    const selected = getSelectedSnapshot(snapshots);
+    selectedSnapshotId = selected?.id || null;
+
+    metaEl.textContent = snapshots.length ? `${snapshots.length} snapshot(s)` : "No snapshots yet.";
+
+    snapshots.forEach((snapshot) => {
+      const isSelected = snapshot.id === selectedSnapshotId;
+      const row = document.createElement("button");
+      row.type = "button";
+      row.dataset.snapshotId = String(snapshot.id || "");
+      row.style.cssText = `
+        width:100%;
+        text-align:left;
+        background:${isSelected ? "rgba(70,120,130,.18)" : "transparent"};
+        border:0;
+        color:inherit;
+        padding:10px 12px;
+        border-bottom:1px solid rgba(27,37,38,.35);
+        cursor:pointer;
+      `;
+
+      row.innerHTML = `
+        <div style="font-weight:800; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${snapshot.name || "Snapshot"}</div>
+        <div style="font-size:11px; color:#a8bcbc; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${snapshot.fileName || "Untitled"}</div>
+        <div style="opacity:.75; font-size:11px; margin-top:4px;">${formatDate(snapshot.createdAt)} • ${snapshot.lineCount} lines • ${snapshot.charCount} chars • #${shortId(snapshot.id)}</div>
+      `;
+
+      row.onclick = () => {
+        selectedSnapshotId = snapshot.id;
+        renderPanel(true);
+      };
+
+      listEl.appendChild(row);
+    });
+
+    if (selected) {
+      previewEl.value = String(selected.content || "");
+      metaEl.textContent = `${selected.name || "Snapshot"} • ${formatDate(selected.createdAt)} • ${selected.lineCount} lines • ${selected.charCount} chars • #${shortId(selected.id)}`;
+      restoreBtn.disabled = false;
+      deleteBtn.disabled = false;
+    }
+
+    if (scrollToSelection) {
+      requestAnimationFrame(() => {
+        const selectedRow = selectedSnapshotId
+          ? listEl.querySelector(`[data-snapshot-id="${CSS.escape(String(selectedSnapshotId))}"]`)
+          : null;
+
+        if (selectedRow && typeof selectedRow.scrollIntoView === "function") {
+          selectedRow.scrollIntoView({ block: "nearest" });
+        } else {
+          listEl.scrollTop = 0;
+        }
+      });
+    }
+  }
+
+  function openPanel() {
+    ensurePanel();
+    panel.style.display = "flex";
+    savePanelState();
+    renderPanel(true);
+  }
+
+  function registerActionSoon() {
+    try {
+      if (typeof Moonskai !== "undefined" && Moonskai && typeof Moonskai.addMenuItem === "function") {
+        Moonskai.addMenuItem(
+          "tools.timemachine",
+          "⏱️ Time Machine",
+          openPanel,
+          { description: "Create named manual snapshots for the current file, restore them, and export the selected snapshot." }
+        );
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  if (!registerActionSoon()) {
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries++;
+      if (registerActionSoon() || tries > 40) clearInterval(timer);
+    }, 100);
+  }
+})();
